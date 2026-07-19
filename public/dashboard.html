@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Controlon Analytics Hub</title>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+        .app-shell {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 240px;
+            background: #0f172a;
+            color: #fff;
+            padding: 24px 16px;
+            box-sizing: border-box;
+        }
+        .sidebar-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #cbd5e1;
+        }
+        .nav-tab {
+            display: block;
+            width: 100%;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #e2e8f0;
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .nav-tab.active {
+            background: #009845;
+            color: #fff;
+            font-weight: 600;
+        }
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            box-sizing: border-box;
+        }
+        .user-summary {
+            background: #ffffff;
+            padding: 20px 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-left: 4px solid #009845;
+            margin-bottom: 20px;
+        }
+        .user-summary h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: #111827;
+        }
+        .user-summary p {
+            margin: 0 0 6px 0;
+            color: #4b5563;
+        }
+        .group-pill {
+            display: inline-block;
+            background: #eef2f7;
+            color: #009845;
+            border-radius: 999px;
+            padding: 3px 10px;
+            margin-right: 6px;
+            margin-top: 6px;
+            font-size: 0.85rem;
+        }
+        .view-panel {
+            display: none;
+        }
+        .view-panel.active {
+            display: block;
+        }
+        .apps-panel, .dashboard-card {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e5e7eb;
+        }
+        .apps-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #1a202c;
+            border-bottom: 1px solid #edf2f7;
+            padding-bottom: 10px;
+        }
+        .apps-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .app-item {
+            margin-bottom: 10px;
+            padding: 12px 16px;
+            border-radius: 4px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.2s;
+        }
+        .app-item:hover {
+            background: #f1f5f9;
+        }
+        .app-thumb {
+            width: 96px;
+            height: 96px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            flex-shrink: 0;
+        }
+        .app-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1.05rem;
+        }
+        .app-link:hover {
+            text-decoration: underline;
+            color: #0044aa;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        .card-header h2 {
+            margin: 0 0 4px 0;
+            font-size: 1.1rem;
+        }
+        .card-header p {
+            margin: 0;
+            color: #6b7280;
+        }
+        .open-link {
+            display: inline-block;
+            background: #009845;
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .object-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .object-meta div {
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: #f9fafb;
+        }
+        .object-meta strong {
+            display: block;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .embed-status {
+            margin-bottom: 10px;
+            color: #374151;
+        }
+        .embed-shell {
+            min-height: 560px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        qlik-embed {
+            width: 100%;
+            height: 560px;
+            display: block;
+        }
+        .embed-fallback {
+            padding: 24px;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-title">Navigation</div>
+            <button class="nav-tab active" data-tab="portal">Dashboard 1</button>
+            <button class="nav-tab" data-tab="embed">Dashboard 2</button>
+        </aside>
+
+        <main class="main-content">
+            <div id="user-summary" class="user-summary">
+                <h1 id="user-greeting">Hi, user</h1>
+                <p id="user-email">Loading email...</p>
+                <div id="user-groups"></div>
+            </div>
+
+            <section id="portal-view" class="view-panel active">
+                <div class="apps-panel">
+                    <div class="apps-title">Available apps</div>
+                    <ul id="apps-list" class="apps-list"></ul>
+                </div>
+            </section>
+
+            <section id="embed-view" class="view-panel">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Requested Qlik table object</h2>
+                            <p>Authenticated with JWT and routed to the requested app/object.</p>
+                        </div>
+                        <a id="open-in-qlik" class="open-link" href="#" target="_blank" rel="noopener noreferrer">Open in Qlik</a>
+                    </div>
+
+                    <div class="object-meta">
+                        <div>
+                            <strong>App ID</strong>
+                            <span id="app-id-text">Loading...</span>
+                        </div>
+                        <div>
+                            <strong>Object ID</strong>
+                            <span id="object-id-text">Loading...</span>
+                        </div>
+                    </div>
+
+                    <div id="embed-status" class="embed-status">Preparing the embedded table...</div>
+                    <div class="embed-shell">
+                        <qlik-embed id="qlik-object"></qlik-embed>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const ui = {
+            userGreeting: document.getElementById('user-greeting'),
+            userEmail: document.getElementById('user-email'),
+            userGroups: document.getElementById('user-groups'),
+            appsList: document.getElementById('apps-list'),
+            embedStatus: document.getElementById('embed-status'),
+            appIdText: document.getElementById('app-id-text'),
+            objectIdText: document.getElementById('object-id-text'),
+            openInQlik: document.getElementById('open-in-qlik')
+        };
+
+        let sharedConfig = null;
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-tab').forEach((button) => {
+                button.classList.toggle('active', button.dataset.tab === tabName);
+            });
+            document.querySelectorAll('.view-panel').forEach((panel) => {
+                panel.classList.toggle('active', panel.id === `${tabName}-view`);
+            });
+        }
+
+        function setUserSummary(config, userData) {
+            const userName = userData?.name || config?.userName || 'user';
+            const userEmail = userData?.email || config?.userEmail || 'No email available';
+            const userGroups = Array.isArray(userData?.assignedGroups)
+                ? userData.assignedGroups.map((group) => group.name || group.id || 'Group')
+                : Array.isArray(config?.userGroups) && config.userGroups.length
+                    ? config.userGroups
+                    : [];
+
+            ui.userGreeting.textContent = `Hi, ${userName}`;
+            ui.userEmail.textContent = userEmail;
+            ui.userGroups.innerHTML = userGroups.length
+                ? userGroups.map((group) => `<span class="group-pill">${group}</span>`).join('')
+                : '<span class="group-pill">No groups</span>';
+        }
+
+        function resolveAppHref(app, config) {
+            const baseHost = (config?.host || '').replace(/\/$/, '');
+            const candidates = [
+                app.href,
+                app.url,
+                app.webUrl,
+                app.link,
+                app.resourceHref,
+                app.resourceUrl,
+                app.appUrl,
+                app.appHref
+            ];
+
+            for (const candidate of candidates) {
+                if (typeof candidate === 'string' && candidate.trim()) {
+                    if (/^https?:\/\//i.test(candidate)) {
+                        return candidate;
+                    }
+                    return `${baseHost}${candidate.startsWith('/') ? '' : '/'}${candidate}`;
+                }
+            }
+
+            const appId = app.resourceId || app.appId || app.id;
+            if (appId) {
+                return `${baseHost}/sense/app/${encodeURIComponent(appId)}`;
+            }
+
+            return '#';
+        }
+
+        function renderAppsList(config, appsData) {
+            const appsList = Array.isArray(appsData?.data) ? appsData.data : [];
+            ui.appsList.innerHTML = '';
+
+            appsList.forEach((app) => {
+                const li = document.createElement('li');
+                li.className = 'app-item';
+                const baseHost = (config?.host || 'https://controlon-prod.us.qlikcloud.com').replace(/\/$/, '');
+                const thumbUrl = app.thumbnailUrl || app.thumbnail || app.imageUrl || app.image || app.media || '';
+                const appId = app.resourceId || app.appId || app.id;
+                const referenceThumb = appId ? `${baseHost}/api/v1/apps/${encodeURIComponent(appId)}/media/thumbnail` : '';
+                const resolvedThumb = thumbUrl || referenceThumb;
+                li.innerHTML = `
+                    <img class="app-thumb" src="${resolvedThumb}" alt="${app.name || app.resourceName || 'App thumbnail'}">
+                    <a class="app-link" href="${resolveAppHref(app, config)}" target="_blank" rel="noopener noreferrer">${app.name || app.resourceName || 'Unnamed app'}</a>
+                `;
+                ui.appsList.appendChild(li);
+            });
+        }
+
+        async function fetchToken() {
+            const res = await fetch('/api/qlik/token');
+            const data = await res.json();
+            return data.token;
+        }
+
+        async function ensureQlikSession(config, token) {
+            const sessionRes = await fetch(`${config.host.replace(/\/$/, '')}/login/jwt-session`, {
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'qlik-web-integration-id': config.webIntegrationId,
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (sessionRes.status !== 200) {
+                const errText = await sessionRes.text();
+                throw new Error(`Qlik login/jwt-session failed: ${sessionRes.status} ${errText}`);
+            }
+        }
+
+        async function fetchQlikUser(config) {
+            const res = await fetch(`${config.host.replace(/\/$/, '')}/api/v1/users/me`, {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'qlik-web-integration-id': config.webIntegrationId
+                }
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`Failed to fetch user: ${res.status} ${errText}`);
+            }
+
+            return res.json();
+        }
+
+        async function fetchQlikApps(config) {
+            const appsRes = await fetch(`${config.host.replace(/\/$/, '')}/api/v1/items?resourceType=app&limit=50`, {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'qlik-web-integration-id': config.webIntegrationId
+                }
+            });
+
+            if (!appsRes.ok) {
+                const errText = await appsRes.text();
+                throw new Error(`Failed to fetch apps: ${appsRes.status} ${errText}`);
+            }
+
+            return appsRes.json();
+        }
+
+        async function loadQlikEmbedScript() {
+            console.log('[embed] Checking for Qlik embed custom element...');
+            if (window.customElements && window.customElements.get('qlik-embed')) {
+                console.log('[embed] Qlik embed custom element already available.');
+                return true;
+            }
+
+            try {
+                console.log('[embed] Loading Qlik embed script from CDN...');
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/@qlik/embed-web-components/dist/qlik-embed.js';
+                    script.onload = () => {
+                        console.log('[embed] Qlik embed script loaded successfully.');
+                        resolve();
+                    };
+                    script.onerror = () => {
+                        console.error('[embed] Failed to load Qlik embed script from CDN.');
+                        reject(new Error('Unable to load the Qlik embedding script from the CDN.'));
+                    };
+                    document.head.appendChild(script);
+                });
+                return true;
+            } catch (err) {
+                console.warn('[embed] Qlik embed script unavailable:', err.message);
+                return false;
+            }
+        }
+
+        async function initializeSharedSession() {
+            const configRes = await fetch('/api/config');
+            sharedConfig = await configRes.json();
+
+            if (!sharedConfig.webIntegrationId) {
+                throw new Error('Missing Qlik web integration ID in backend config.');
+            }
+
+            const currentToken = await fetchToken();
+            await ensureQlikSession(sharedConfig, currentToken);
+            return sharedConfig;
+        }
+
+        async function initPortalView(config) {
+            try {
+                const [userData, appsData] = await Promise.all([
+                    fetchQlikUser(config),
+                    fetchQlikApps(config)
+                ]);
+
+                setUserSummary(config, userData);
+                renderAppsList(config, appsData);
+            } catch (err) {
+                console.error('Portal view failed:', err);
+                ui.appsList.innerHTML = `<li class="app-item">Unable to load the app list. <br><small>${err.message}</small></li>`;
+            }
+        }
+
+        async function initEmbedView(config) {
+            ui.embedStatus.textContent = 'Preparing the embedded table...';
+            console.log('[embed] Starting embed initialization.');
+            console.log('[embed] Config received:', config);
+
+            try {
+                const appId = config.targetAppId || config.appId || '';
+                const objectId = config.targetObjectId || config.objectId || '';
+                console.log('[embed] Using appId:', appId);
+                console.log('[embed] Using objectId:', objectId);
+
+                ui.appIdText.textContent = appId || 'Not configured';
+                ui.objectIdText.textContent = objectId || 'Not configured';
+
+                if (ui.openInQlik) {
+                    ui.openInQlik.href = appId ? `${config.host.replace(/\/$/, '')}/sense/app/${encodeURIComponent(appId)}` : '#';
+                }
+
+                if (!appId || !objectId) {
+                    console.warn('[embed] Missing app ID or object ID.');
+                    ui.embedStatus.textContent = 'The Qlik app or object ID is not configured.';
+                    return;
+                }
+
+                console.log('[embed] Attempting to load Qlik embed script...');
+                const embedReady = await loadQlikEmbedScript();
+                if (!embedReady) {
+                    console.warn('[embed] Embed script could not be loaded.');
+                    ui.embedStatus.innerHTML = 'The embedded table is unavailable right now. <br><small>The app list remains available.</small>';
+                    document.querySelector('.embed-shell').innerHTML = `<div class="embed-fallback">Open the app directly: <a href="${(config?.host || '').replace(/\/$/, '')}/sense/app/${encodeURIComponent(appId)}" target="_blank" rel="noopener noreferrer">Open app</a></div>`;
+                    return;
+                }
+
+                const embedEl = document.getElementById('qlik-object');
+                console.log('[embed] Applying embed attributes to element:', embedEl);
+                embedEl.setAttribute('host', config.host.replace(/\/$/, ''));
+                embedEl.setAttribute('web-integration-id', config.webIntegrationId);
+                embedEl.setAttribute('app-id', appId);
+                embedEl.setAttribute('object-id', objectId);
+                embedEl.setAttribute('type', 'table');
+                embedEl.setAttribute('show-toolbar', 'false');
+                embedEl.setAttribute('show-export', 'false');
+                console.log('[embed] Embed attributes set.');
+                ui.embedStatus.textContent = 'Embedded object is ready.';
+            } catch (err) {
+                console.error('[embed] Embed view failed:', err);
+                ui.embedStatus.innerHTML = `Unable to render the object. <br><small>${err.message}</small>`;
+                document.querySelector('.embed-shell').innerHTML = `<div class="embed-fallback">Open the app directly: <a href="${(config?.host || '').replace(/\/$/, '')}/sense/app/${encodeURIComponent(config?.targetAppId || config?.appId || '')}" target="_blank" rel="noopener noreferrer">Open app</a></div>`;
+            }
+        }
+
+        async function initDashboard() {
+            try {
+                const config = await initializeSharedSession();
+                await Promise.allSettled([
+                    initPortalView(config),
+                    initEmbedView(config)
+                ]);
+            } catch (err) {
+                ui.appsList.innerHTML = `<li class="app-item">Unable to initialize the dashboard. <br><small>${err.message}</small></li>`;
+                ui.embedStatus.innerHTML = `Unable to initialize the embedded view. <br><small>${err.message}</small>`;
+                document.querySelector('.embed-shell').innerHTML = `<div class="embed-fallback">Open the app directly: <a href="${(sharedConfig?.host || '').replace(/\/$/, '')}/sense/app/${encodeURIComponent(sharedConfig?.targetAppId || sharedConfig?.appId || '')}" target="_blank" rel="noopener noreferrer">Open app</a></div>`;
+            }
+        }
+
+        document.querySelectorAll('.nav-tab').forEach((button) => {
+            button.addEventListener('click', () => switchTab(button.dataset.tab));
+        });
+
+        initDashboard();
+    </script>
+</body>
+</html>

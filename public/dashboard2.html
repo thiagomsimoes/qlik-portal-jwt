@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Qlik Table Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 32px;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+        .user-summary {
+            background: #ffffff;
+            padding: 20px 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-left: 4px solid #009845;
+            margin-bottom: 20px;
+        }
+        .user-summary h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: #111827;
+        }
+        .user-summary p {
+            margin: 0 0 6px 0;
+            color: #4b5563;
+        }
+        .group-pill {
+            display: inline-block;
+            background: #eef2f7;
+            color: #009845;
+            border-radius: 999px;
+            padding: 3px 10px;
+            margin-right: 6px;
+            margin-top: 6px;
+            font-size: 0.85rem;
+        }
+        .dashboard-card {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        .card-header h2 {
+            margin: 0 0 4px 0;
+            font-size: 1.1rem;
+        }
+        .card-header p {
+            margin: 0;
+            color: #6b7280;
+        }
+        .open-link {
+            display: inline-block;
+            background: #009845;
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .object-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .object-meta div {
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: #f9fafb;
+        }
+        .object-meta strong {
+            display: block;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .embed-status {
+            margin-bottom: 10px;
+            color: #374151;
+        }
+        .embed-shell {
+            min-height: 560px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        qlik-embed {
+            width: 100%;
+            height: 560px;
+            display: block;
+        }
+        .embed-fallback {
+            padding: 24px;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div id="user-summary" class="user-summary">
+        <h1 id="user-greeting">Hi, user</h1>
+        <p id="user-email">Loading email...</p>
+        <div id="user-groups"></div>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="card-header">
+            <div>
+                <h2>Requested Qlik table object</h2>
+                <p>Authenticated with JWT and routed to the requested app/object.</p>
+            </div>
+            <a id="open-in-qlik" class="open-link" href="#" target="_blank" rel="noopener noreferrer">Open in Qlik</a>
+        </div>
+
+        <div class="object-meta">
+            <div>
+                <strong>App ID</strong>
+                <span id="app-id-text">Loading...</span>
+            </div>
+            <div>
+                <strong>Object ID</strong>
+                <span id="object-id-text">Loading...</span>
+            </div>
+        </div>
+
+        <div id="embed-status" class="embed-status">Preparing the embedded table...</div>
+        <div class="embed-shell">
+            <qlik-embed id="qlik-object"></qlik-embed>
+        </div>
+    </div>
+
+    <script>
+        async function initDashboard() {
+            const configRes = await fetch('/api/config');
+            const config = await configRes.json();
+
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = value;
+                }
+            };
+
+            const fetchToken = async () => {
+                const res = await fetch('/api/qlik/token');
+                const data = await res.json();
+                return data.token;
+            };
+
+            const ensureQlikSession = async (config, token) => {
+                const sessionRes = await fetch(`${config.host.replace(/\/$/, '')}/login/jwt-session`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'qlik-web-integration-id': config.webIntegrationId,
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (sessionRes.status !== 200) {
+                    const errText = await sessionRes.text();
+                    throw new Error(`Qlik login/jwt-session failed: ${sessionRes.status} ${errText}`);
+                }
+            };
+
+            const loadQlikEmbedScript = () => new Promise((resolve, reject) => {
+                if (window.customElements && window.customElements.get('qlik-embed')) {
+                    return resolve();
+                }
+
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/@qlik/embed-web-components/dist/qlik-embed.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Unable to load the Qlik embedding script from the CDN.'));
+                document.head.appendChild(script);
+            });
+
+            try {
+                if (!config.webIntegrationId) {
+                    throw new Error('Missing Qlik web integration ID in backend config.');
+                }
+
+                const currentToken = await fetchToken();
+                await ensureQlikSession(config, currentToken);
+
+                const userGroups = Array.isArray(config.userGroups) && config.userGroups.length
+                    ? config.userGroups
+                    : ['No groups'];
+
+                document.getElementById('user-greeting').textContent = `Hi, ${config.userName || 'user'}`;
+                document.getElementById('user-email').textContent = config.userName || 'No email available';
+                document.getElementById('user-groups').innerHTML = userGroups.map((group) => `<span class="group-pill">${group}</span>`).join('');
+
+                const appId = config.targetAppId || config.appId || '';
+                const objectId = config.targetObjectId || config.objectId || '';
+
+                setText('app-id-text', appId || 'Not configured');
+                setText('object-id-text', objectId || 'Not configured');
+
+                const openLink = document.getElementById('open-in-qlik');
+                if (appId) {
+                    openLink.href = `${config.host.replace(/\/$/, '')}/sense/app/${encodeURIComponent(appId)}`;
+                } else {
+                    openLink.href = '#';
+                }
+
+                if (!appId || !objectId) {
+                    throw new Error('App ID or Object ID is missing from the backend configuration.');
+                }
+
+                await loadQlikEmbedScript();
+
+                const embedEl = document.getElementById('qlik-object');
+                embedEl.setAttribute('host', config.host.replace(/\/$/, ''));
+                embedEl.setAttribute('web-integration-id', config.webIntegrationId);
+                embedEl.setAttribute('app-id', appId);
+                embedEl.setAttribute('object-id', objectId);
+                embedEl.setAttribute('type', 'table');
+                embedEl.setAttribute('show-toolbar', 'false');
+                embedEl.setAttribute('show-export', 'false');
+
+                document.getElementById('embed-status').textContent = 'Embedded object is ready.';
+            } catch (err) {
+                document.getElementById('embed-status').innerHTML = `Unable to render the object. <br><small>${err.message}</small>`;
+                document.querySelector('.embed-shell').innerHTML = `<div class="embed-fallback">Open the app directly: <a href="${(config.host || '').replace(/\/$/, '')}/sense/app/${encodeURIComponent(config.targetAppId || config.appId || '')}" target="_blank" rel="noopener noreferrer">Open app</a></div>`;
+            }
+        }
+
+        initDashboard();
+    </script>
+</body>
+</html>
