@@ -255,3 +255,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Portal de aplicações ativo em http://localhost:${PORT}`);
 });
+
+
+/*teste*/
